@@ -7,22 +7,10 @@
     const prod = false;
     let PROXIES = [];
 
-    // Fetch proxies from ProxyScrape on startup
-    console.log("Fetching anonymous HTTP proxies from ProxyScrape...");
-    try {
-        const proxyRes = await fetch("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=20000&country=all&ssl=all&anonymity=anonymous");
-        const proxyText = await proxyRes.text();
-        
-        // Parse the text, remove empty lines, and format as URLs
-        PROXIES = proxyText
-            .split(/\r?\n/)
-            .filter(p => p.trim() !== "")
-            .map(p => `http://${p.trim()}`);
-            
-        console.log(`Successfully loaded ${PROXIES.length} proxies.`);
-    } catch (err) {
-        console.error("Failed to fetch proxies. Check your network or API endpoint:", err);
-    }
+    // Use rotating proxy gateway
+    const PROXY_GATEWAY = "http://gateway.sparkproxy.io:11000";
+    console.log(`Configured to use rotating proxy gateway: ${PROXY_GATEWAY}`);
+    PROXIES = [PROXY_GATEWAY];
 
     // HTTP SERVER
     const server = http.createServer((req, res) => {
@@ -128,9 +116,9 @@
 
                     case "F":
                         if (verified) {
-                            // Guard clause in case proxy fetch failed or list is empty
+                            // Guard clause in case proxy list is empty
                             if (PROXIES.length === 0) {
-                                console.log("Cannot deploy: No proxies loaded.");
+                                console.log("Cannot deploy: No proxies available.");
                                 break;
                             }
 
