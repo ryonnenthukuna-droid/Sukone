@@ -10,7 +10,7 @@
     // Fetch proxies from ProxyScrape on startup
     console.log("Fetching anonymous HTTP proxies from ProxyScrape...");
     try {
-        const proxyRes = await fetch("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=anonymous");
+        const proxyRes = await fetch("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=20000&country=all&ssl=all&anonymity=anonymous");
         const proxyText = await proxyRes.text();
         
         // Parse the text, remove empty lines, and format as URLs
