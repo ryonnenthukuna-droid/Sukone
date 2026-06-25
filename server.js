@@ -4,16 +4,31 @@
     const { pack, unpack } = await import("msgpackr");
     const http = await import("http");
 
-
-    const PROXIES = ["http://budget-v6.whiteproxies.com:27020"];
     const prod = false;
+    let PROXIES = [];
+
+    // Fetch proxies from ProxyScrape on startup
+    console.log("Fetching anonymous HTTP proxies from ProxyScrape...");
+    try {
+        const proxyRes = await fetch("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=anonymous");
+        const proxyText = await proxyRes.text();
+        
+        // Parse the text, remove empty lines, and format as URLs
+        PROXIES = proxyText
+            .split(/\r?\n/)
+            .filter(p => p.trim() !== "")
+            .map(p => `http://${p.trim()}`);
+            
+        console.log(`Successfully loaded ${PROXIES.length} proxies.`);
+    } catch (err) {
+        console.error("Failed to fetch proxies. Check your network or API endpoint:", err);
+    }
 
     // HTTP SERVER
     const server = http.createServer((req, res) => {
         res.writeHead(426, {"Content-Type": "text/plain"});
         res.end("pluh");
     });
-
 
     // WS SERVER
     function randint(a, b) {
@@ -49,7 +64,6 @@
         function removeWorker(dead) {
             workers = workers.filter(w => w !== dead && w.connected);
         }
-
 
         function packet(...args) {
             ws.send(pack(args));
@@ -114,6 +128,12 @@
 
                     case "F":
                         if (verified) {
+                            // Guard clause in case proxy fetch failed or list is empty
+                            if (PROXIES.length === 0) {
+                                console.log("Cannot deploy: No proxies loaded.");
+                                break;
+                            }
+
                             if (proxyIdx >= PROXIES.length) {
                                 proxyIdx = 0;
                             }
@@ -215,7 +235,6 @@
             console.log(addr, "disconnected");
         });
     });
-
 
     const port = prod ? process.env.PORT : 8082;
     server.listen(port, () => {
