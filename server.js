@@ -6,11 +6,53 @@
 
     const prod = false;
     let PROXIES = [];
+    let proxyIdx = 0;
+    const BUILTIN_PROXY_LIST = [
+        "http://rotating:IFQFJuicg3vxVEqK@dc0f.redscrape.com:7777"
+    ];
 
-    // Use rotating proxy gateway
-    const PROXY_GATEWAY = "http://gateway.sparkproxy.io:11000";
-    console.log(`Configured to use rotating proxy gateway: ${PROXY_GATEWAY}`);
-    PROXIES = [PROXY_GATEWAY];
+    function parseProxyList(list) {
+        return list
+            .split(/[,\n\r]+/)
+            .map(p => p.trim())
+            .filter(Boolean)
+            .map(p => p.replace(/^(http:\/\/|https:\/\/)?/, 'http://'));
+    }
+
+    function getNextProxy() {
+        if (PROXIES.length === 0) {
+            return null;
+        }
+        if (proxyIdx >= PROXIES.length) {
+            proxyIdx = 0;
+        }
+        const proxy = PROXIES[proxyIdx];
+        proxyIdx = (proxyIdx + 1) % PROXIES.length;
+        return proxy;
+    }
+
+    if (process.env.PROXY_ROTATE_LIST) {
+        PROXIES = parseProxyList(process.env.PROXY_ROTATE_LIST);
+        console.log(`Using proxy list from PROXY_ROTATE_LIST (${PROXIES.length} proxies).`);
+    } else {
+        PROXIES = BUILTIN_PROXY_LIST.slice();
+        console.log("Using built-in proxy list with rotation support.");
+        console.log("Fetching anonymous HTTP proxies from ProxyScrape...");
+        try {
+            const proxyRes = await fetch("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=20000&country=all&ssl=all&anonymity=anonymous");
+            const proxyText = await proxyRes.text();
+            
+            // Parse the text, remove empty lines, and format as URLs
+            PROXIES.push(...proxyText
+                .split(/\r?\n/)
+                .filter(p => p.trim() !== "")
+                .map(p => `http://${p.trim()}`));
+                
+            console.log(`Successfully loaded ${PROXIES.length} proxies.`);
+        } catch (err) {
+            console.error("Failed to fetch proxies. Check your network or API endpoint:", err);
+        }
+    }
 
     // HTTP SERVER
     const server = http.createServer((req, res) => {
@@ -32,12 +74,11 @@
         let workers = [];
         let challenge;
         let verified = false;
+        let nameSeq = 1;
 
         let tank = "Auto-6";
         let tanks = [];
         let tankIdx = 0;
-
-        let proxyIdx = 0;
 
         function sendToWorker(worker, msg) {
             try {
@@ -116,16 +157,13 @@
 
                     case "F":
                         if (verified) {
-                            // Guard clause in case proxy list is empty
-                            if (PROXIES.length === 0) {
-                                console.log("Cannot deploy: No proxies available.");
+                            const proxyUrl = getNextProxy();
+                            if (!proxyUrl) {
+                                console.log("Cannot deploy: No proxies loaded.");
                                 break;
                             }
 
-                            if (proxyIdx >= PROXIES.length) {
-                                proxyIdx = 0;
-                            }
-                            console.log("connecting with proxy", PROXIES[proxyIdx])
+                            console.log("connecting with proxy", proxyUrl)
 
                             const worker = fork("index.js", []);
                             workers.push(worker);
@@ -154,10 +192,10 @@
                                 id: 0,
                                 proxy: {
                                     type: "http",
-                                    url: PROXIES[proxyIdx]
+                                    url: proxyUrl
                                 },
                                 hash: "#" + data[0],
-                                name: "discord.gg/ugNk5GDCja",
+                                name: `[Iya] ${nameSeq}`,
                                 stats: [0, 0, 0, 0, 0, 0, 0, 9],
                                 type: "follow",
                                 token: "follow-8fe6ca",
@@ -171,6 +209,7 @@
                                 reconnectAttempts: 3,
                                 reconnectDelay: 15000,
                             }});
+                            nameSeq++;
 
                             proxyIdx++;
                         }

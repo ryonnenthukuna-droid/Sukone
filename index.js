@@ -77,7 +77,7 @@
       build: builds.basic
     },
     octo: {
-      path: "hyyc",
+      path: "hyyiec",
       build: builds.basic
     },
     autogunner: {
