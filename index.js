@@ -37,7 +37,7 @@
   //const names = fs.readFileSync("names.txt").toString().split("\n");
 
   const builds = {
-    basic: "0/4/6/7/7/7/7/4",
+    basic: "0/4/6/7/7/7/6/4",
     triangle: "0/2/3/7/7/7/7/7",
     smasher: "9/12/0/0/0/0/0/12/3/6"
   };
@@ -243,7 +243,7 @@
       build: builds.basic
     },
     lorry: {
-      path: "ihyy",
+      path: "ecihyy",
       build: builds.basic
     },
 
@@ -1627,9 +1627,13 @@
     } else if (message.type == 'tankselect') {
       target.tank = message.tank;
     } else if (message.type == 'destroy') {
-      console.log("why devastatee");
-      devastate();
-      process.exit();
+      console.log("Destroy command received; shutting down worker.");
+      try {
+        devastate();
+      } catch (err) {
+        console.error("Failed during worker destroy cleanup:", err);
+      }
+      setTimeout(() => process.exit(0), 50);
     }
   });
 
