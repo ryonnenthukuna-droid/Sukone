@@ -8,7 +8,7 @@
     let PROXIES = [];
     let proxyIdx = 0;
     const BUILTIN_PROXY_LIST = [
-        "http://rotating:IFQFJuicg3vxVEqK@dc0f.redscrape.com:7777"
+        "http://spjkufyo3c:bc9QQa_elQYmp63qg5@dc.decodo.com:10000/"
     ];
 
     function parseProxyList(list) {
@@ -37,21 +37,7 @@
     } else {
         PROXIES = BUILTIN_PROXY_LIST.slice();
         console.log("Using built-in proxy list with rotation support.");
-        console.log("Fetching anonymous HTTP proxies from ProxyScrape...");
-        try {
-            const proxyRes = await fetch("https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=20000&country=all&ssl=all&anonymity=anonymous");
-            const proxyText = await proxyRes.text();
-            
-            // Parse the text, remove empty lines, and format as URLs
-            PROXIES.push(...proxyText
-                .split(/\r?\n/)
-                .filter(p => p.trim() !== "")
-                .map(p => `http://${p.trim()}`));
-                
-            console.log(`Successfully loaded ${PROXIES.length} proxies.`);
-        } catch (err) {
-            console.error("Failed to fetch proxies. Check your network or API endpoint:", err);
-        }
+        console.log("Using configured proxy:", PROXIES[0]);
     }
 
     // HTTP SERVER
@@ -63,6 +49,14 @@
     // WS SERVER
     function randint(a, b) {
         return Math.floor(Math.random() * (b - a + 1)) + a;
+    }
+
+    function clearTerminal() {
+        if (process.stdout.isTTY) {
+            process.stdout.write('\x1Bc');
+            process.stdout.write('\x1B[2J');
+            process.stdout.write('\x1B[H');
+        }
     }
 
     const wss = new WebSocketServer({ server });
@@ -98,11 +92,16 @@
             ws.send(pack(args));
         }
 
-        function close() {
-            ws.close();
+        function destroyWorkers() {
             for (const worker of workers) {
                 sendToWorker(worker, { type: "destroy" });
             }
+            workers = [];
+        }
+
+        function close() {
+            ws.close();
+            destroyWorkers();
         }
 
         ws.on("message", (msg) => {
@@ -195,7 +194,7 @@
                                     url: proxyUrl
                                 },
                                 hash: "#" + data[0],
-                                name: `[Iya] ${nameSeq}`,
+                                name: `[bot] ${nameSeq}`,
                                 stats: [0, 0, 0, 0, 0, 0, 0, 9],
                                 type: "follow",
                                 token: "follow-8fe6ca",
@@ -217,11 +216,12 @@
                         break;
 
                     case "B":
-                        if (verified) {
-                            for (const worker of workers) {
-                                worker.send({ type: "destroy" });
-                            }
-                            workers = [];
+                    case "destroy":
+                    case "D":
+                        if (verified || type === "destroy" || type === "D") {
+                            clearTerminal();
+                            console.log(addr, "received destroy from controller");
+                            destroyWorkers();
                         }
 
                         break;
@@ -255,10 +255,7 @@
         });
 
         ws.on("close", () => {
-            for (const worker of workers) {
-                sendToWorker(worker, { type: "destroy" });
-            }
-
+            destroyWorkers();
             console.log(addr, "disconnected");
         });
     });
