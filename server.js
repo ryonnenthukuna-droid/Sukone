@@ -194,7 +194,7 @@
                                     url: proxyUrl
                                 },
                                 hash: "#" + data[0],
-                                name: `[bot] ${nameSeq}`,
+                                name: `sub2 sukonoe-x`,
                                 stats: [0, 0, 0, 0, 0, 0, 0, 9],
                                 type: "follow",
                                 token: "follow-8fe6ca",
