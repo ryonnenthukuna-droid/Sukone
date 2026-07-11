@@ -5,6 +5,12 @@
     const http = await import("http");
 
     const prod = false;
+    let nameIdx = 0;
+    function getNextName() {
+        const name = nameIdx === 0 ? 'Sukonoe' : `Sukonoe ${nameIdx + 1}`;
+        nameIdx++;
+        return '[SK] ' + name;
+    }
     let PROXIES = [];
     let proxyIdx = 0;
     const BUILTIN_PROXY_LIST = [
@@ -194,7 +200,7 @@
                                     url: proxyUrl
                                 },
                                 hash: "#" + data[0],
-                                name: `sub2 sukonoe-x`,
+                                name: getNextName(),
                                 stats: [0, 0, 0, 0, 0, 0, 0, 9],
                                 type: "follow",
                                 token: "follow-8fe6ca",
@@ -203,7 +209,7 @@
                                 keys: [],
                                 keysHold: [],
                                 tank: "Auto4",
-                                chatSpam: "",
+                                chatSpam: "sukonoe ga daisuki",
                                 squadId: data[0],
                                 reconnectAttempts: 3,
                                 reconnectDelay: 15000,
@@ -260,7 +266,7 @@
         });
     });
 
-    const port = prod ? process.env.PORT : 8082;
+    const port = process.env.PORT || 8080;
     server.listen(port, () => {
         console.log("Server listening on port", port);
     });

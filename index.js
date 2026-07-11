@@ -7,7 +7,7 @@
   const socksProxyModule = await import('socks-proxy-agent');
   const SocksProxyAgent = socksProxyModule.SocksProxyAgent || socksProxyModule.default || socksProxyModule;
   const url = await import('url');
-  //const fs = await import('fs');
+  const fs = await import('fs');
   const fetchModule = await import('node-fetch');
   const realFetch = fetchModule.default || fetchModule;
 
@@ -186,7 +186,7 @@
       path: ["r", [3, 3], "u"],
       build: builds.smasher
     },
-    autoshasher: {
+    autosmasher: {
       path: ["r", [3, 3], "i"],
       build: builds.smasher
     },
@@ -499,7 +499,7 @@
     // TRI ANGLE
     rocket: {
       path: "huuy",
-      build: "8/8/0/0/0/0/8/8/2/8"
+      build: "0/0/0/0/0/0/9/6/9"
     },
     fighter: {
       path: "huy",
@@ -585,6 +585,17 @@
     griffin: {
       path: "kkh",
       build: builds.triangle
+    },
+    pincer: {
+      path: "iuuk",
+      build: builds.basic
+    },
+    get random() {
+      const keys = ['y','u','i','o','p','h','j','k','l'];
+      const shuffled = keys.slice().sort(() => Math.random() - 0.5);
+      const path = shuffled.slice(0, 4);
+      const build = Array.from({length: 8}, () => Math.floor(Math.random() * 10)).join('/');
+      return { path, build };
     }
   };
 
@@ -670,12 +681,14 @@
       }
     }
 
-    realFetch('https://arras.io/app.wasm').then(x => {
+    realFetch('https://raw.githubusercontent.com/CXamigos/HARRAS/refs/heads/main/app.wasm').then(x => {
       x.arrayBuffer().then(x => {
         app = x;
         //log('Prerequisite 1/2: app.wasm loaded.');
         onPrerequisiteLoaded();
       })
+    }).catch(err => {
+      log('FATAL: Could not fetch patched app.wasm.', err);
     });
 
     const loadScript = function () {
@@ -685,31 +698,16 @@
         onPrerequisiteLoaded();
       };
 
-      const extractScriptFromHtml = (html) => {
-        const scriptTagStart = html.indexOf('<script>');
-        if (scriptTagStart === -1) {
-          log('Error: Could not find <script> tag in content.');
-          return null;
-        }
-        let scriptContent = html.slice(scriptTagStart + 8);
-        const scriptTagEnd = scriptContent.indexOf('</script');
-        if (scriptTagEnd === -1) {
-          log('Error: Could not find closing </script> tag.');
-          return null;
-        }
-        scriptContent = scriptContent.slice(0, scriptTagEnd);
-        return scriptContent;
-      };
-
-      //log('Fetching from https://arras.io to ensure correct script execution order...');
-      realFetch('https://arras.io').then(x => x.text()).then(html => {
-        const extractedScript = extractScriptFromHtml(html);
-        if (extractedScript) {
-          activateBot(extractedScript);
-        }
-      }).catch(err => {
-        log('FATAL: Could not fetch from arras.io. Please check network or use a valid cache file.', err);
-      });
+      // arras.io's own official bundle is currently broken; instead of fetching
+      // and eval'ing arras.io's own (bugged) inline loader script, we run a
+      // known-good loader whose WASM import bindings are matched to the patched
+      // app.wasm fetched above (see harras-loader.js).
+      try {
+        const loaderContent = fs.readFileSync(new url.URL('./harras-loader.js', import.meta.url), 'utf-8');
+        activateBot(loaderContent);
+      } catch (err) {
+        log('FATAL: Could not load harras-loader.js.', err);
+      }
     }
     loadScript();
 
@@ -840,9 +838,16 @@
         arrasAdDone: true
       };
 
-      global.crypto = global.window.crypto = {
+      global.window.crypto = {
         getRandomValues: function (a) { return a }
       };
+      try {
+        Object.defineProperty(global, 'crypto', {
+          value: global.window.crypto,
+          configurable: true,
+          writable: true
+        });
+      } catch (err) { /* Node's built-in crypto getter isn't configurable; keep native impl. */ }
       global.addEventListener = global.window.addEventListener = function (type, f) {
         handleListener(type, f, global.window)
       };
@@ -1202,10 +1207,13 @@
             if (key === "wait") {
               await waitTime(1000);
             } else if (key instanceof Array) {
-              await waitTime(500);
+              await waitTime(target.tank === 'random' ? randint(300, 900) : 500);
               controller.click(upgrade_map[key[0]], upgrade_map[key[1]]);
-              await waitTime(500);
+              await waitTime(target.tank === 'random' ? randint(300, 900) : 500);
             } else {
+              if (target.tank === 'random') {
+                await waitTime(randint(150, 600));
+              }
               controller.press("Key" + key.toUpperCase());
             }
           }
@@ -1305,10 +1313,6 @@
             }
           }
           if (inGame && config.type === 'follow') {
-            // if (i % 35 === 34) {
-            //   controller.chat("7".repeat(randint(1, 60)))
-            // }
-
             // if (Math.random() < 0.002) {
             //   controller.chat("#PRAISETHEPRIMORDIALNOOB");
             // }
@@ -1341,8 +1345,11 @@
                 );
               }
 
-              controller.x = (innerWidth / 2) + Math.cos(angle) * 200;
-              controller.y = (innerHeight / 2) + Math.sin(angle) * 200;
+              const aimOffset = target.tank === 'random' ? angle + Math.PI * (0.5 + Math.random())
+                : target.tank === 'rocket' ? angle + (Math.random() - 0.5) * (Math.PI / 6)
+                : angle;
+              controller.x = (innerWidth / 2) + Math.cos(aimOffset) * 200;
+              controller.y = (innerHeight / 2) + Math.sin(aimOffset) * 200;
             }
 
             /*if (Math.random() < 0.01) {
